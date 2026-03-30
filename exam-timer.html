@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Exam Timer</title>
+<style>
+  @import url('data:text/css,');
+</style>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0d0f12;
+    --surface: #161a20;
+    --border: #2a2f38;
+    --text: #e8eaed;
+    --muted: #6b7280;
+    --accent: #4f9cf9;
+    --warn: #f0a500;
+    --danger: #e8453c;
+    --extra: #34c48b;
+    --mono: 'Courier New', 'Lucida Console', monospace;
+    --sans: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+  }
+
+  h1 {
+    font-family: var(--sans);
+    font-weight: 300;
+    font-size: 0.85rem;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 2.5rem;
+  }
+
+  /* ── SETUP PANEL ── */
+  #setup {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 2rem 2.5rem;
+    width: 100%;
+    max-width: 420px;
+  }
+
+  .field { margin-bottom: 1.25rem; }
+
+  label {
+    display: block;
+    font-size: 0.75rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 0.4rem;
+  }
+
+  input, select {
+    width: 100%;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 1rem;
+    padding: 0.55rem 0.75rem;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  input:focus, select:focus { border-color: var(--accent); }
+
+  /* styled spinners */
+  input[type=number] { appearance: none; -moz-appearance: textfield; padding-right: 0; }
+  input[type=number]::-webkit-outer-spin-button,
+  input[type=number]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+  }
+  .num-wrap { position: relative; }
+  .num-wrap input { padding-right: 2rem; }
+  .spin-btns {
+    position: absolute; right: 1px; top: 1px; bottom: 1px;
+    display: flex; flex-direction: column;
+    width: 1.6rem; border-left: 1px solid var(--border);
+    border-radius: 0 5px 5px 0; overflow: hidden;
+  }
+  .spin-btns button {
+    flex: 1; background: var(--surface); border: none;
+    color: var(--muted); cursor: pointer; font-size: 0.6rem; line-height: 1;
+    transition: background 0.1s, color 0.1s; padding: 0;
+  }
+  .spin-btns button:hover { background: var(--border); color: var(--text); }
+  .spin-btns button:first-child { border-bottom: 1px solid var(--border); }
+
+  .row { display: flex; gap: 1rem; align-items: flex-end; }
+  .row .field { flex: 1; }
+
+  select option { background: var(--surface); }
+
+  #startBtn {
+    width: 100%;
+    margin-top: 0.5rem;
+    padding: 0.7rem;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    font-family: var(--sans);
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    letter-spacing: 0.04em;
+    transition: opacity 0.15s;
+  }
+  #startBtn:hover { opacity: 0.85; }
+
+  /* ── TIMER DISPLAY ── */
+  #display { display: none; width: 100%; max-width: 700px; }
+
+  .timer-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 1.5rem 1.75rem;
+  }
+
+  .card.wide { grid-column: 1 / -1; }
+
+  .card-label {
+    font-size: 0.7rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 0.5rem;
+  }
+
+  .card-value {
+    font-family: var(--mono);
+    font-size: 1.15rem;
+    font-weight: 400;
+    color: var(--text);
+  }
+
+  /* big countdown */
+  .countdown-card {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 2rem;
+    transition: border-color 0.4s;
+  }
+
+  #mainCountdown {
+    font-family: var(--mono);
+    font-size: clamp(3.5rem, 10vw, 6rem);
+    font-weight: 500;
+    letter-spacing: 0.05em;
+    line-height: 1;
+    transition: color 0.4s;
+  }
+
+  /* extra time card */
+  .extra-card {
+    border-color: color-mix(in srgb, var(--extra) 40%, transparent);
+  }
+
+  .extra-card .card-label { color: var(--extra); }
+
+  #extraCountdown {
+    font-family: var(--mono);
+    font-size: clamp(2rem, 6vw, 3.5rem);
+    font-weight: 500;
+    letter-spacing: 0.05em;
+    line-height: 1;
+    color: var(--extra);
+    transition: color 0.4s;
+  }
+
+  /* state colors */
+  .state-warn  { color: var(--warn) !important; border-color: color-mix(in srgb, var(--warn) 40%, transparent) !important; }
+  .state-danger { color: var(--danger) !important; border-color: color-mix(in srgb, var(--danger) 40%, transparent) !important; }
+  .state-done  { color: var(--muted) !important; }
+
+  /* controls */
+  .controls {
+    display: flex;
+    gap: 0.75rem;
+    justify-content: center;
+    margin-top: 0.5rem;
+  }
+
+  .btn {
+    padding: 0.5rem 1.4rem;
+    border-radius: 6px;
+    font-family: var(--sans);
+    font-size: 0.85rem;
+    font-weight: 500;
+    cursor: pointer;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    letter-spacing: 0.04em;
+    transition: border-color 0.15s, color 0.15s;
+  }
+  .btn:hover { border-color: var(--accent); color: var(--accent); }
+  .btn.reset { color: var(--muted); }
+  .btn.reset:hover { border-color: var(--danger); color: var(--danger); }
+
+  .paused-badge {
+    display: none;
+    font-size: 0.7rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--warn);
+    text-align: center;
+    margin-top: 0.4rem;
+  }
+</style>
+</head>
+<body>
+
+<h1>Exam Timer</h1>
+
+<!-- SETUP -->
+<div id="setup">
+  <div class="row">
+    <div class="field">
+      <label for="duration">Duration (minutes)</label>
+      <div class="num-wrap">
+        <input type="number" id="duration" min="1" value="90" />
+        <div class="spin-btns">
+          <button type="button" onclick="step('duration',1)">▲</button>
+          <button type="button" onclick="step('duration',-1)">▼</button>
+        </div>
+      </div>
+    </div>
+    <div class="field">
+      <label for="extraMult">Extra time</label>
+      <div class="num-wrap">
+        <input type="number" id="extraMult" min="0" max="10" step="0.05" value="1.25" />
+        <div class="spin-btns">
+          <button type="button" onclick="step('extraMult',0.05)">▲</button>
+          <button type="button" onclick="step('extraMult',-0.05)">▼</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="field">
+    <label for="examName">Exam name (optional)</label>
+    <input type="text" id="examName" placeholder="Unbelievably important life-or-death exam" />
+  </div>
+  <button id="startBtn">Start Timer</button>
+</div>
+
+<!-- DISPLAY -->
+<div id="display">
+  <div class="timer-grid">
+
+    <!-- big countdown -->
+    <div class="card countdown-card" id="mainCard">
+      <div class="card-label" id="displayName">Time Remaining</div>
+      <div id="mainCountdown">--:--:--</div>
+    </div>
+
+    <!-- start / end times -->
+    <div class="card">
+      <div class="card-label">Started</div>
+      <div class="card-value" id="startTime">--:--</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Ends</div>
+      <div class="card-value" id="endTime">--:--</div>
+    </div>
+
+    <!-- extra time (shown only if selected) -->
+    <div class="card extra-card wide" id="extraCard" style="display:none">
+      <div class="card-label" id="extraLabel">Extra Time Ends</div>
+      <div style="display:flex; align-items:baseline; gap:1.5rem; flex-wrap:wrap;">
+        <div>
+          <div style="font-size:0.65rem;letter-spacing:0.1em;text-transform:uppercase;color:var(--muted);margin-bottom:0.3rem;">Ends at</div>
+          <div class="card-value" id="extraEndTime">--:--</div>
+        </div>
+        <div style="flex:1; text-align:right;">
+          <div id="extraCountdown">--:--:--</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="controls">
+    <button class="btn" id="pauseBtn">Pause</button>
+    <button class="btn reset" id="resetBtn">Reset</button>
+  </div>
+  <div class="paused-badge" id="pausedBadge">Paused</div>
+</div>
+
+<script>
+  const fmtTime = d => d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
+
+  function step(id, delta) {
+    const el = document.getElementById(id);
+    const val = parseFloat(el.value) || 0;
+    const min = parseFloat(el.min ?? '-Infinity');
+    el.value = Math.max(min, Math.round((val + delta) * 1000) / 1000);
+  }
+
+  const fmtCountdown = secs => {
+    if (secs <= 0) return '00:00:00';
+    const h = Math.floor(secs / 3600);
+    const m = Math.floor((secs % 3600) / 60);
+    const s = secs % 60;
+    return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  };
+
+  let endMs, extraEndMs, pausedAt, interval;
+  let paused = false;
+
+  document.getElementById('startBtn').addEventListener('click', () => {
+    const dur = parseFloat(document.getElementById('duration').value);
+    const mult = parseFloat(document.getElementById('extraMult').value);
+    const name = document.getElementById('examName').value.trim();
+    if (!dur || dur <= 0) return;
+
+    const now = Date.now();
+    endMs = now + dur * 60000;
+    extraEndMs = mult > 0 ? now + dur * mult * 60000 : null;
+
+    document.getElementById('startTime').textContent = fmtTime(new Date(now));
+    document.getElementById('endTime').textContent   = fmtTime(new Date(endMs));
+    if (name) document.getElementById('displayName').textContent = name;
+
+    if (extraEndMs) {
+      const multLabel = document.getElementById('extraLabel');
+      multLabel.textContent = `Extra Time (${mult}×)`;
+      document.getElementById('extraEndTime').textContent = fmtTime(new Date(extraEndMs));
+      document.getElementById('extraCard').style.display = '';
+    }
+
+    document.getElementById('setup').style.display   = 'none';
+    document.getElementById('display').style.display = 'block';
+
+    tick();
+    interval = setInterval(tick, 1000);
+  });
+
+  function tick() {
+    if (paused) return;
+    const now = Date.now();
+
+    // main
+    const remMain = Math.max(0, Math.ceil((endMs - now) / 1000));
+    const mainEl = document.getElementById('mainCountdown');
+    const cardEl = document.getElementById('mainCard');
+    mainEl.textContent = fmtCountdown(remMain);
+
+    mainEl.classList.remove('state-warn','state-danger','state-done');
+    cardEl.classList.remove('state-warn','state-danger');
+    if (remMain === 0) {
+      mainEl.classList.add('state-done');
+    } else if (remMain <= 600) {
+      mainEl.classList.add('state-danger');
+      cardEl.classList.add('state-danger');
+    } else if (remMain <= 1800) {
+      mainEl.classList.add('state-warn');
+      cardEl.classList.add('state-warn');
+    }
+
+    // extra
+    if (extraEndMs) {
+      const remExtra = Math.max(0, Math.ceil((extraEndMs - now) / 1000));
+      const extraEl = document.getElementById('extraCountdown');
+      extraEl.textContent = fmtCountdown(remExtra);
+      extraEl.classList.remove('state-danger','state-done');
+      if (remExtra === 0) extraEl.classList.add('state-done');
+      else if (remExtra <= 600) extraEl.classList.add('state-danger');
+    }
+  }
+
+  document.getElementById('pauseBtn').addEventListener('click', () => {
+    paused = !paused;
+    document.getElementById('pauseBtn').textContent = paused ? 'Resume' : 'Pause';
+    document.getElementById('pausedBadge').style.display = paused ? 'block' : 'none';
+    if (!paused) {
+      // shift end times by the paused duration
+      if (!pausedAt) return;
+      const delta = Date.now() - pausedAt;
+      endMs += delta;
+      if (extraEndMs) extraEndMs += delta;
+      document.getElementById('endTime').textContent = fmtTime(new Date(endMs));
+      if (extraEndMs) document.getElementById('extraEndTime').textContent = fmtTime(new Date(extraEndMs));
+      pausedAt = null;
+    } else {
+      pausedAt = Date.now();
+    }
+  });
+
+  document.getElementById('resetBtn').addEventListener('click', () => {
+    clearInterval(interval);
+    paused = false;
+    pausedAt = null;
+    document.getElementById('display').style.display = 'none';
+    document.getElementById('setup').style.display   = '';
+    document.getElementById('extraCard').style.display = 'none';
+    document.getElementById('pauseBtn').textContent  = 'Pause';
+    document.getElementById('pausedBadge').style.display = 'none';
+    document.getElementById('displayName').textContent = 'Time Remaining';
+    ['mainCountdown','extraCountdown'].forEach(id => {
+      const el = document.getElementById(id);
+      el.textContent = '--:--:--';
+      el.className = '';
+    });
+    document.getElementById('mainCard').className = 'card countdown-card';
+  });
+</script>
+</body>
+</html>
